@@ -5,6 +5,10 @@ COPY src ./src
 RUN mvn -B -DskipTests package
 
 FROM eclipse-temurin:21-jre-jammy
+# Apply published OS security updates between upstream image refreshes.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /workspace/target/demo-0.0.1-SNAPSHOT.jar app.jar
 USER 10001:10001
