@@ -41,3 +41,7 @@ firebase-credentials.json
 
 # Local database credentials
 /application-local.properties
+
+# Python helpers used by CI
+__pycache__/
+*.pyc
