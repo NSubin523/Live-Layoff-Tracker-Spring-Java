@@ -25,8 +25,27 @@ Successful chat generation and Android flows still need a logged-in app test.
 
 ## Deploy later changes
 
-The GitHub repositories are not connected to automatic deployment yet. Pushing
-to GitHub alone does not update these services. From the appropriate local repo:
+GitHub automatic deployment is configured through Cloud Build connection
+`layoff-dev-github` in `us-east4`:
+
+| Repository | Trigger | Deploys |
+| --- | --- | --- |
+| `NSubin523/Live-Layoff-Tracker-Spring-Java` | `layoff-api-dev-main` | Spring dev service |
+| `NSubin523/Live-Layoff-Backend-Gemini-genai-client-` | `layoff-chat-dev-main` | Python dev service |
+
+Work goes into `develop`. Pushes to `develop` do not deploy. Merge or push to
+`main` to build and deploy the corresponding development service automatically.
+Both triggers match exactly `^main$`; pull requests do not deploy. Production is
+not configured. Builds use the Dockerfile, tag images with the Git commit SHA,
+preserve runtime settings and secrets, then check feed/health over HTTPS.
+
+Build definitions are stored inline in Cloud Build. View build status and logs in
+Google Cloud Console → Cloud Build → Triggers / History, selecting `us-east4`.
+The Cloud Build GitHub app can read the two selected repos and publish build
+checks/statuses. Its connection token stays in Secret Manager. The temporary
+Secret Manager Admin grant used during connection setup was removed.
+
+For a manual override from the appropriate local repo:
 
 ```bash
 bash scripts/deploy-dev.sh
@@ -43,9 +62,8 @@ CLOUDSDK_CONFIG=/tmp/layoff-cloud-tools/config bash scripts/deploy-dev.sh
 
 Temporary tools/configuration may be removed by the operating system. For regular
 use, install the official Google Cloud CLI and authenticate your own account.
-To enable automatic deployments, connect each GitHub repo under the corresponding
-Cloud Run service's Source tab and configure a `main` branch trigger. Google may
-request GitHub app installation and additional build/deployment permissions.
+Manual deployment builds the current local checkout regardless of its branch;
+use it only when deliberately overriding the `main` deployment workflow.
 
 ## Projects and services
 
