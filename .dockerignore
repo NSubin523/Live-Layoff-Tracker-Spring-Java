@@ -1,0 +1,8 @@
+.git
+.idea
+target
+.env
+.env.*
+application-local.properties
+**/*credentials*.json
+**/*service-account*.json

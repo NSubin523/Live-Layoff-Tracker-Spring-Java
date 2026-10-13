@@ -1,0 +1,3 @@
+firebase:
+  use-adc: true
+  project-id: ${FIREBASE_PROJECT_ID}
