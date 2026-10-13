@@ -4,7 +4,9 @@
 
 Requires Java 21 or newer and a local Firebase service-account file at
 `src/main/resources/firebase-credentials.json` (excluded from Git).
-PostgreSQL is required for telemetry. Set `DB_PASSWORD` in your shell (no credentials are committed).
+PostgreSQL is required for telemetry. Spring optionally loads
+`application-local.properties` from the project root for local Docker credentials.
+That file is ignored by Git. `DB_PASSWORD` can override its password.
 Optional settings: `DB_URL` and `DB_USERNAME`. The existing Python-created `telemetry`
 table is reused; no Hibernate schema updates run. For a new database, apply
 `db/telemetry.sql` once. Future telemetry schema changes belong to reviewed SQL in
