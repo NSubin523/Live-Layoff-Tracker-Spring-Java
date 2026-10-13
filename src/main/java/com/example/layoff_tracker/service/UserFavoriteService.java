@@ -61,6 +61,30 @@ public class UserFavoriteService {
         }
     }
 
+    public ToggleFavoriteResponseDto setFavorite(String userId, String companyId, boolean saved) {
+        String lockKey = "lock:fav:" + userId + ":" + companyId;
+        Boolean acquired = redisTemplate.opsForValue().setIfAbsent(lockKey, "LOCKED", DEBOUNCE_TTL);
+        if (Boolean.FALSE.equals(acquired)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Please wait before updating again.");
+        }
+        try {
+            userFavoriteRepository.setFavorite(userId, companyId, saved);
+            return new ToggleFavoriteResponseDto(companyId, saved, saved ? "Company saved" : "Company unsaved");
+        } catch (Exception error) {
+            redisTemplate.delete(lockKey);
+            log.error("Unable to set favorite for user [{}] company [{}]", userId, companyId, error);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to update favorite status.");
+        }
+    }
+
+    public List<String> getFavoriteIds(String userId) {
+        try {
+            return userFavoriteRepository.getFavoriteIds(userId);
+        } catch (Exception error) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to fetch favorite IDs.");
+        }
+    }
+
     public List<Company> getUserFavorites(String userId) {
         try {
             return userFavoriteRepository.getUserFavorites(userId);

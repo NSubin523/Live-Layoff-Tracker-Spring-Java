@@ -26,6 +26,42 @@ public class UserFavoriteRepositoryImpl implements UserFavoriteRepository{
     }
 
 
+    /** Idempotent membership write. Repeated saves preserve the original savedAt. */
+    @Override
+    public void setFavorite(String userId, String companyId, boolean saved) {
+        DocumentReference ref = getFavoriteDocRef(userId, companyId);
+        try {
+            firestore.runTransaction(transaction -> {
+                DocumentSnapshot current = transaction.get(ref).get();
+                if (saved && !current.exists()) {
+                    transaction.set(ref, Map.of("companyId", companyId, "savedAt", FieldValue.serverTimestamp()));
+                } else if (!saved && current.exists()) {
+                    transaction.delete(ref);
+                }
+                return null;
+            }).get();
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while setting favorite", error);
+        } catch (ExecutionException error) {
+            throw new RuntimeException("Unable to set favorite", error);
+        }
+    }
+
+    /** Membership is returned even when the referenced layoff document no longer exists. */
+    @Override
+    public List<String> getFavoriteIds(String userId) {
+        try {
+            return firestore.collection("users").document(userId).collection("favorites")
+                    .get().get().getDocuments().stream().map(DocumentSnapshot::getId).toList();
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while reading favorite IDs", error);
+        } catch (ExecutionException error) {
+            throw new RuntimeException("Unable to read favorite IDs", error);
+        }
+    }
+
     @Override
     public boolean isFavorite(String userId, String companyId) {
         try {
