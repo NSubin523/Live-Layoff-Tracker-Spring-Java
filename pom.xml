@@ -28,6 +28,10 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Patched compatible releases until Spring Boot's BOM catches up. -->
+		<jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+		<jackson-bom.version>3.1.7</jackson-bom.version>
+		<tomcat.version>11.0.27</tomcat.version>
 	</properties>
 	<dependencies>
 		<dependency>

@@ -142,6 +142,13 @@ jobs:
           output: codeql-results
       - name: Verify security gate parser
         run: python3 -m unittest discover -s scripts/tests -v
+      - name: Save CodeQL report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: codeql-report
+          path: codeql-results/*.sarif
+          if-no-files-found: error
+          retention-days: 7
       - name: Block high and critical CodeQL findings
         run: python3 scripts/check_sarif.py codeql-results
 

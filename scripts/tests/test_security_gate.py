@@ -27,6 +27,16 @@ class SecurityGateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.scan('9.0', [{'ruleId': 'unknown'}])
 
+    def test_extension_rules_and_descriptor_references(self):
+        rule = {'id': 'java/security', 'properties': {'security-severity': '8.0'}}
+        run = {'tool': {'driver': {'name': 'CodeQL', 'rules': []},
+                        'extensions': [{'name': 'java-queries', 'rules': [rule]}]},
+               'results': [{'ruleId': 'java/security'},
+                           {'rule': {'index': 0, 'toolComponent': {'index': 0}}}]}
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, 'report.sarif').write_text(json.dumps({'version': '2.1.0', 'runs': [run]}))
+            self.assertEqual(gate.check_reports(directory), ['java/security', 'java/security'])
+
     def scan(self, severity, results):
         with tempfile.TemporaryDirectory() as directory:
             report = {'version': '2.1.0', 'runs': [{'tool': {'driver': {'rules': [
