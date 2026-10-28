@@ -1,5 +1,7 @@
 package com.example.layoff_tracker.controller;
 import com.example.layoff_tracker.dto.ToggleFavoriteResponseDto;
+import com.example.layoff_tracker.model.Company;
+import com.example.layoff_tracker.model.LayoffStatus;
 import com.example.layoff_tracker.security.FirebaseAuthValidator;
 import com.example.layoff_tracker.service.UserFavoriteService;
 import org.junit.jupiter.api.Test;
@@ -52,5 +54,19 @@ class UserFavoriteControllerTest {
         mvc.perform(post("/api/v1/favorites/toggle").header("Authorization", "Bearer valid")
             .contentType("application/json").content("{\"companyId\":\"company\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.saved").value(false));
+    }
+    @Test void listingPreservesExistingFieldsAndAddsNullableAnalyticsIdentity() throws Exception {
+        when(auth.extractUserId("Bearer valid")).thenReturn("trusted");
+        when(service.getUserFavorites("trusted")).thenReturn(List.of(
+            Company.builder().id("legacy").companyName("Example").layoffStatus(LayoffStatus.CONFIRMED)
+                .analyticsCompanyId("stable").build(), Company.builder().id("unresolved").build()));
+        mvc.perform(get("/api/v1/favorites").header("Authorization", "Bearer valid"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value("legacy"))
+            .andExpect(jsonPath("$[0].companyName").value("Example"))
+            .andExpect(jsonPath("$[0].layoffStatus").value("CONFIRMED"))
+            .andExpect(jsonPath("$[0].analytics_company_id").value("stable"))
+            .andExpect(jsonPath("$[0].analyticsCompanyId").doesNotExist())
+            .andExpect(jsonPath("$[1].analytics_company_id").isEmpty());
     }
 }

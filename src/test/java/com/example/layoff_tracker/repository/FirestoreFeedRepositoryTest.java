@@ -1,12 +1,13 @@
 package com.example.layoff_tracker.repository;
 
-import com.example.layoff_tracker.dto.FeedResponseDto;
+import com.example.layoff_tracker.model.FeedCompany;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -42,11 +43,11 @@ class FirestoreFeedRepositoryTest {
     @Test void queryIsLimitedAndKeepsFirestoreOrderAndNullImpact() {
         List<QueryDocumentSnapshot> documents = List.of(document("new"), document("old"));
         when(snapshot.getDocuments()).thenReturn(documents);
-        List<FeedResponseDto> result = repository.findLatest(25);
-        assertEquals(List.of("new", "old"), result.stream().map(FeedResponseDto::id).toList());
+        List<FeedCompany> result = repository.findLatest(25);
+        assertEquals(List.of("new", "old"), result.stream().map(FeedCompany::id).toList());
         assertNull(result.getFirst().impactCount());
         assertEquals("Confirmed", result.getFirst().status());
-        assertEquals("2026-05-31T21:57:53.110526Z", result.getFirst().reportedAt());
+        assertEquals("2026-05-31T21:57:53.110526Z", result.getFirst().reportedAt().toString());
         verify(ordered).limit(25);
     }
 
@@ -58,7 +59,7 @@ class FirestoreFeedRepositoryTest {
         when(doc.getString("logo_url")).thenReturn("logo");
         when(doc.getString("trend_direction")).thenReturn("increasing");
         when(snapshot.getDocuments()).thenReturn(List.of(doc));
-        FeedResponseDto result = repository.findLatest(25).getFirst();
+        FeedCompany result = repository.findLatest(25).getFirst();
         assertEquals(3000L, result.impactCount());
         assertEquals("Software", result.industry());
         assertEquals("Global", result.location());
@@ -69,6 +70,27 @@ class FirestoreFeedRepositoryTest {
     @Test void emptyCollectionReturnsEmptyList() {
         when(snapshot.getDocuments()).thenReturn(List.of());
         assertTrue(repository.findLatest(25).isEmpty());
+    }
+
+    @Test void feedIncludesDetailsFromTheSameDocumentWithoutExtraReads() throws Exception {
+        QueryDocumentSnapshot doc = document("company");
+        when(doc.exists()).thenReturn(true);
+        when(doc.getString("layoff_details")).thenReturn("Detailed announcement.\nSecond paragraph.");
+        when(doc.get("article_links")).thenReturn(List.of(Map.of("url", "https://news.example.test/story")));
+        when(doc.get("images")).thenReturn(List.of(Map.of("url", "https://images.example.test/office.jpg")));
+        when(snapshot.getDocuments()).thenReturn(List.of(doc));
+        var record = repository.findLatest(25).getFirst();
+        assertEquals("Detailed announcement.\nSecond paragraph.", record.layoffDetails());
+        assertEquals("https://news.example.test/story", record.articleLinks().getFirst().url());
+        assertEquals(1, record.images().size());
+        verify(collection, never()).document(anyString());
+
+        DocumentReference reference = mock(DocumentReference.class);
+        @SuppressWarnings("unchecked") ApiFuture<DocumentSnapshot> detailFuture = mock(ApiFuture.class);
+        when(collection.document("company")).thenReturn(reference);
+        when(reference.get()).thenReturn(detailFuture);
+        when(detailFuture.get()).thenReturn(doc);
+        assertEquals(record, repository.findById("company").orElseThrow());
     }
 
     @Test void missingTimestampIsNotReplacedWithCurrentTime() {

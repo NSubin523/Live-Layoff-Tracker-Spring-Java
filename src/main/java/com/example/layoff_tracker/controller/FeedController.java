@@ -28,6 +28,16 @@ public class FeedController {
         return feedService.getFeed();
     }
 
+    @GetMapping("/{companyId}")
+    public FeedResponseDto getDetail(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable String companyId) {
+        if (authorization != null) {
+            authValidator.extractUserId(authorization);
+        }
+        return feedService.getDetail(companyId);
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, String>> handleFailure(ResponseStatusException error) {
         return ResponseEntity.status(error.getStatusCode())
