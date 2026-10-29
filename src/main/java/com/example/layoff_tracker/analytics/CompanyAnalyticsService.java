@@ -24,6 +24,7 @@ public class CompanyAnalyticsService {
     public Dashboard dashboard(String id, String from, String to) {
         AnalyticsQuery query = query(id, from, to);
         Company company = requireCompany(query);
+        String safeId = sanitizeForLog(id);
         Instant now = clock.instant();
         Section<Workforce> workforce;
         try {
@@ -31,7 +32,7 @@ public class CompanyAnalyticsService {
             workforce = section(observation.orElse(null), repository.coverage(query.companyId(), "WORKFORCE"),
                     observation.isEmpty(), List.of(), now);
         } catch (RuntimeException e) {
-            log.error("Workforce read failed for company {}", id, e);
+            log.error("Workforce read failed for company {}", safeId, e);
             workforce = failed();
         }
         Section<Layoffs> layoffs;
@@ -52,7 +53,7 @@ public class CompanyAnalyticsService {
             layoffs = section(summary, repository.coverage(query.companyId(), "LAYOFFS"),
                     confirmed + rumored == 0, warnings, now);
         } catch (RuntimeException e) {
-            log.error("Layoff read failed for company {}", id, e);
+            log.error("Layoff read failed for company {}", safeId, e);
             layoffs = failed();
         }
         if (workforce.availability() == Availability.TEMPORARILY_UNAVAILABLE
@@ -111,5 +112,9 @@ public class CompanyAnalyticsService {
             buckets.add(byMonth.getOrDefault(month, new Bucket(start, end, 0, 0, 0, 0, 0, 0)));
         }
         return List.copyOf(buckets);
+    }
+    private String sanitizeForLog(String value) {
+        if (value == null) return null;
+        return value.replace('\n', '_').replace('\r', '_');
     }
 }
