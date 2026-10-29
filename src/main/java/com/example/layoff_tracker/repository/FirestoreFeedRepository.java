@@ -1,15 +1,15 @@
 package com.example.layoff_tracker.repository;
 
-import com.example.layoff_tracker.dto.FeedResponseDto;
-import com.google.cloud.Timestamp;
+import com.example.layoff_tracker.model.FeedCompany;
+import com.example.layoff_tracker.mapper.FeedDocumentMapper;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.Query;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 @Repository
@@ -18,12 +18,12 @@ public class FirestoreFeedRepository implements FeedRepository {
     private final Firestore firestore;
 
     @Override
-    public List<FeedResponseDto> findLatest(int limit) {
+    public List<FeedCompany> findLatest(int limit) {
         try {
             return firestore.collection("layoffs")
                     .orderBy("reported_at", Query.Direction.DESCENDING)
                     .limit(limit).get().get().getDocuments().stream()
-                    .map(FirestoreFeedRepository::toResponse).toList();
+                    .map(FeedDocumentMapper::fromDocument).toList();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while fetching feed", e);
@@ -32,15 +32,17 @@ public class FirestoreFeedRepository implements FeedRepository {
         }
     }
 
-    private static FeedResponseDto toResponse(DocumentSnapshot doc) {
-        Timestamp timestamp = doc.getTimestamp("reported_at");
-        if (timestamp == null) {
-            throw new IllegalStateException("Feed record is missing reported_at");
+    @Override
+    public Optional<FeedCompany> findById(String companyId) {
+        try {
+            DocumentSnapshot doc = firestore.collection("layoffs").document(companyId).get().get();
+            return doc.exists() ? Optional.of(FeedDocumentMapper.fromDocument(doc)) : Optional.empty();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while fetching feed details", e);
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("Failed to fetch feed details from Firestore", e);
         }
-        String reportedAt = Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos()).toString();
-        return new FeedResponseDto(doc.getId(), doc.getString("company_name"),
-                doc.getLong("impact_count"), doc.getString("status"),
-                doc.getString("industry"), doc.getString("location"), reportedAt,
-                doc.getString("logo_url"), doc.getString("trend_direction"));
     }
+
 }

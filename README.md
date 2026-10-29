@@ -33,8 +33,13 @@ curl http://localhost:8081/api/v1/feed
 ```
 
 The feed supports guests. When Authorization is supplied, it must contain a valid
-Firebase bearer ID token. It returns at most 25 records, newest first, with the
-same snake_case JSON contract as the former FastAPI feed endpoint.
+Firebase bearer ID token. It returns at most 25 records, newest first. Existing
+snake_case fields are preserved, with company descriptions, layoff details,
+news sources, image URLs and article links included in each record for Android's
+card and bottom-sheet mappers. `GET /api/v1/feed/{company_id}` returns the same
+complete payload for a single Firestore feed document on a cache miss.
+
+See [the feed payload and future ingestion contract](docs/feed-payload.md).
 
 ## Tests
 
@@ -50,6 +55,21 @@ Tests do not read or write live Firestore data.
 
 - Spring: feed reads, favorites toggle/listing, telemetry batches.
 - Python: chat/history, ingestion and feed writes, notifications, scheduled workers.
+
+## Company analytics
+
+The authenticated watchlist dashboard foundation is available at
+`GET /api/v1/companies/{companyId}/analytics`, with bounded history pages at
+`GET /api/v1/companies/{companyId}/layoff-events`. Both accept `from` and `to`
+dates. These use stable analytics UUIDs, optionally exposed as
+`analytics_company_id` on existing favorites results.
+
+Analytics history lives in PostgreSQL; feed and favorites remain in Firestore.
+The new schema requires an explicit migration and reviewed data onboarding.
+No external providers, comparison endpoint, scheduled acquisition or Redis
+analytics cache are implemented. No real analytics records are seeded.
+
+See [the implementation and rollout guide](docs/company-analytics-implementation.md).
 
 Android's feed provider uses the existing Java/Favorites Retrofit client on port
 8081. Telemetry uses that client too. Chat continues using Python on port 8000.

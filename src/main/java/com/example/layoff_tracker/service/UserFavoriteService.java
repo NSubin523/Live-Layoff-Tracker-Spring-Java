@@ -1,6 +1,7 @@
 package com.example.layoff_tracker.service;
 
 import com.example.layoff_tracker.dto.ToggleFavoriteResponseDto;
+import com.example.layoff_tracker.analytics.CompanyIdentityResolver;
 import com.example.layoff_tracker.model.Company;
 import com.example.layoff_tracker.repository.UserFavoriteRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class UserFavoriteService {
 
     private final UserFavoriteRepository userFavoriteRepository;
     private final StringRedisTemplate redisTemplate;
+    private final CompanyIdentityResolver identityResolver;
 
     // Rate-limiting window to debounce button spamming
     private static final Duration DEBOUNCE_TTL = Duration.ofMillis(1200);
@@ -87,7 +89,10 @@ public class UserFavoriteService {
 
     public List<Company> getUserFavorites(String userId) {
         try {
-            return userFavoriteRepository.getUserFavorites(userId);
+            List<Company> favorites = userFavoriteRepository.getUserFavorites(userId);
+            var analyticsIds = identityResolver.resolveFavorites(favorites.stream().map(Company::getId).toList());
+            favorites.forEach(company -> company.setAnalyticsCompanyId(analyticsIds.get(company.getId())));
+            return favorites;
         } catch (Exception ex) {
             log.error("Failed to fetch favorites for user [{}]", userId, ex);
             throw new ResponseStatusException(
